@@ -282,15 +282,15 @@ def train(model, outer_start=0, outer_max=100):
         print("Collecting data...")
         buffer = list()
 
-        new_buffer = collect_samples_multiprocess_queue(model_filename=FOLDER_NAME + f'whole_model/outer_{outer - 1}.keras',
+        new_buffer = collect_samples_multiprocess_queue(model_filename=FOLDER_NAME + f'/whole_model/outer_{outer - 1}.keras',
                                                         outer=outer - 1, target_size=buffer_new_size , headless=True)
         if new_buffer:
-            save_buffer_to_file(FOLDER_NAME + f'dataset/buffer_{outer}.pkl', new_buffer)
+            save_buffer_to_file(FOLDER_NAME + f'/dataset/buffer_{outer}.pkl', new_buffer)
             buffer += new_buffer
 
         for i in tqdm(range(max(1, outer - buffer_outer_max + 1), outer), desc="Loading additional samples"):
             try:
-                buffer += load_buffer_from_file(filename=FOLDER_NAME + f'dataset/buffer_{i}.pkl')
+                buffer += load_buffer_from_file(filename=FOLDER_NAME + f'/dataset/buffer_{i}.pkl')
             except FileNotFoundError:
                 print(f"Warning: Buffer file for outer {i} not found. Skipping.")
 
@@ -334,7 +334,7 @@ def train(model, outer_start=0, outer_max=100):
             print(f'      loss = {history.history["loss"][-1]:8.3f}   mse = {history.history["mean_squared_error"][-1]:8.3f}')
 
         print("Saving model...")
-        model.save(FOLDER_NAME + f'whole_model/outer_{outer}.keras')
+        model.save(FOLDER_NAME + f'/whole_model/outer_{outer}.keras')
 
         time_outer_end = time.time()
         text_ = f'outer = {outer:>4d}/{outer_start + outer_max:>4d} | pre-training avg score = {current_avg_score:>8.3f} | loss = {history.history["loss"][-1]:>8.3f} | mse = {history.history["mean_squared_error"][-1]:>8.3f} |' \
@@ -346,7 +346,7 @@ def train(model, outer_start=0, outer_max=100):
 
 def save_buffer_to_file(filename, buffer):
     from pathlib import Path
-    Path(FOLDER_NAME + 'dataset').mkdir(parents=True, exist_ok=True)
+    Path(FOLDER_NAME + '/dataset').mkdir(parents=True, exist_ok=True)
     with open(filename, 'wb') as f:
         pickle.dump(buffer, f)
 
@@ -434,9 +434,9 @@ if __name__ == "__main__":
     elif MODE == 'ai_player_training':
         os.environ["SDL_VIDEODRIVER"] = "dummy"
         # Tạo thư mục để lưu mô hình nếu chưa tồn tại
-        os.makedirs(os.path.dirname(FOLDER_NAME + 'whole_model/'), exist_ok=True)
+        os.makedirs(os.path.dirname(FOLDER_NAME + '/whole_model/'), exist_ok=True)
         
-        model_path = FOLDER_NAME + 'whole_model/outer_0.keras'
+        model_path = FOLDER_NAME + '/whole_model/outer_0.keras'
         
         if OUT_START == 0 or not os.path.exists(model_path):
             print("Creating a new model...")
@@ -472,7 +472,7 @@ if __name__ == "__main__":
 
     elif MODE == 'ai_player_watching':
         try:
-            model_load = keras.models.load_model(FOLDER_NAME + f'whole_model/outer_{OUT_START}.keras')
+            model_load = keras.models.load_model(FOLDER_NAME + f'/whole_model/outer_{OUT_START}.keras')
         except:
             print(f"Couldn't load model. Please ensure you have trained the model first.")
             exit(1)
