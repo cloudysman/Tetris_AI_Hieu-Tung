@@ -40,7 +40,14 @@ tetris-dqn/
 │
 ├── src/
 │   ├── tetris.py         
+│   ├── tetris_tspin.py         
+│   ├── deep_q_network.py         
 ├── train.py             
+├── train_tspin.py             
+├── tertromino.py             
+├── gui.py             
+├── game.py             
+├── common.py             
 ├── test.py              
 ├── requirements.txt     
 └── README.md            
@@ -57,9 +64,9 @@ Basic usage:
 python train.py
 ```
 
-Resume training:
+Train with t-spin
 ```bash
-python train.py  --checkpoint_path "path/to/checkpoint/tetris_3000
+python train_t_spin.py
 ```
 
 During training, the script will:

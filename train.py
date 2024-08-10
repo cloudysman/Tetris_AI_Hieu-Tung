@@ -1,3 +1,7 @@
+"""
+@author: Viet Nguyen <nhviet1009@gmail.com>
+Updated for Python 3.12 by Assistant
+"""
 import argparse
 import os
 import shutil
@@ -17,9 +21,8 @@ from src.tetris import Tetris
 
 class Transition(NamedTuple):
     state: torch.Tensor
-    action: int
-    next_state: torch.Tensor
     reward: float
+    next_state: torch.Tensor
     done: bool
 
 class Args(NamedTuple):
@@ -37,9 +40,7 @@ class Args(NamedTuple):
     replay_memory_size: int
     log_path: str
     saved_path: str
-    score_log_path: str
-    resume: bool
-    checkpoint_path: str
+    score_log_path: str  # New field for score log path
 
 def get_args() -> Args:
     parser = argparse.ArgumentParser(
@@ -56,30 +57,13 @@ def get_args() -> Args:
     parser.add_argument("--num_epochs", type=int, default=3000)
     parser.add_argument("--save_interval", type=int, default=1000)
     parser.add_argument("--replay_memory_size", type=int, default=30000,
-                        help="Number of epoches between testing phases")
+                        help="Number of epochs between testing phases")
     parser.add_argument("--log_path", type=str, default="tensorboard")
     parser.add_argument("--saved_path", type=str, default="trained_models")
-    parser.add_argument("--score_log_path", type=str, default="score_log.csv")
-    parser.add_argument("--resume", action="store_true", help="Resume training from checkpoint")
-    parser.add_argument("--checkpoint_path", type=str, default="", help="Path to checkpoint for resuming training")
+    parser.add_argument("--score_log_path", type=str, default="score_log.csv")  # New argument for score log path
 
     args = parser.parse_args()
     return Args(**vars(args))
-
-def resume_training(opt: Args, checkpoint_path: str):
-    if torch.cuda.is_available():
-        checkpoint = torch.load(checkpoint_path)
-    else:
-        checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
-    
-    model = checkpoint['model']
-    optimizer = Adam(model.parameters(), lr=opt.lr)
-    optimizer.load_state_dict(checkpoint['optimizer'])
-    
-    start_epoch = checkpoint['epoch'] + 1
-    epsilon = max(opt.final_epsilon, opt.initial_epsilon - (start_epoch / opt.num_decay_epochs) * (opt.initial_epsilon - opt.final_epsilon))
-    
-    return model, optimizer, start_epoch, epsilon
 
 def train(opt: Args) -> None:
     if torch.cuda.is_available():
@@ -91,15 +75,8 @@ def train(opt: Args) -> None:
     os.makedirs(opt.log_path)
     writer = SummaryWriter(opt.log_path)
     env = Tetris(width=opt.width, height=opt.height, block_size=opt.block_size)
-    
-    if opt.resume and opt.checkpoint_path:
-        model, optimizer, start_epoch, epsilon = resume_training(opt, opt.checkpoint_path)
-    else:
-        model = DeepQNetwork()
-        optimizer = Adam(model.parameters(), lr=opt.lr)
-        start_epoch = 0
-        epsilon = opt.initial_epsilon
-
+    model = DeepQNetwork()
+    optimizer = Adam(model.parameters(), lr=opt.lr)
     criterion = nn.MSELoss()
 
     state = env.reset()
@@ -108,13 +85,14 @@ def train(opt: Args) -> None:
         state = state.cuda()
 
     replay_memory: Deque[Transition] = deque(maxlen=opt.replay_memory_size)
+    epoch = 0
 
-    with open(opt.score_log_path, 'a', newline='') as score_log:
+    # Open CSV file for logging scores
+    with open(opt.score_log_path, 'w', newline='') as score_log:
         score_writer = csv.writer(score_log)
-        if start_epoch == 0:  # Only write header if starting from scratch
-            score_writer.writerow(['Epoch', 'Score', 'Tetrominoes', 'Cleared Lines'])
+        score_writer.writerow(['Epoch', 'Score', 'Tetrominoes', 'Cleared Lines'])  # Write header
 
-        for epoch in range(start_epoch, opt.num_epochs):
+        while epoch < opt.num_epochs:
             next_steps = env.get_next_states()
             # Exploration or exploitation
             epsilon = opt.final_epsilon + (max(opt.num_decay_epochs - epoch, 0) * (
@@ -141,7 +119,7 @@ def train(opt: Args) -> None:
 
             if torch.cuda.is_available():
                 next_state = next_state.cuda()
-            replay_memory.append(Transition(state, action, next_state, reward, done))
+            replay_memory.append(Transition(state, reward, next_state, done))
             if done:
                 final_score = env.score
                 final_tetrominoes = env.tetrominoes
@@ -149,28 +127,25 @@ def train(opt: Args) -> None:
                 state = env.reset()
                 if torch.cuda.is_available():
                     state = state.cuda()
-                
+
+                # Log the score to CSV
                 score_writer.writerow([epoch, final_score, final_tetrominoes, final_cleared_lines])
-                score_log.flush()
+                score_log.flush()  # Ensure the data is written to the file
             else:
                 state = next_state
                 continue
             if len(replay_memory) < opt.replay_memory_size / 10:
                 continue
-            
+            epoch += 1
             batch = Transition(*zip(*sample(replay_memory, min(len(replay_memory), opt.batch_size))))
             state_batch = torch.stack(batch.state)
-            action_batch = torch.LongTensor(batch.action)
-            reward_batch = torch.FloatTensor(batch.reward)
+            reward_batch = torch.from_numpy(np.array(batch.reward, dtype=np.float32)[:, None])
             next_state_batch = torch.stack(batch.next_state)
-            done_batch = torch.FloatTensor(batch.done)
 
             if torch.cuda.is_available():
                 state_batch = state_batch.cuda()
-                action_batch = action_batch.cuda()
                 reward_batch = reward_batch.cuda()
                 next_state_batch = next_state_batch.cuda()
-                done_batch = done_batch.cuda()
 
             q_values = model(state_batch)
             model.eval()
@@ -178,10 +153,12 @@ def train(opt: Args) -> None:
                 next_prediction_batch = model(next_state_batch)
             model.train()
 
-            y_batch = reward_batch + torch.mul((opt.gamma * torch.max(next_prediction_batch, 1)[0]), (1 - done_batch))
-            
+            y_batch = torch.cat(
+                tuple(reward if done else reward + opt.gamma * prediction for reward, done, prediction in
+                      zip(reward_batch, batch.done, next_prediction_batch)))[:, None]
+
             optimizer.zero_grad()
-            loss = criterion(q_values, y_batch.unsqueeze(1))
+            loss = criterion(q_values, y_batch)
             loss.backward()
             optimizer.step()
 
@@ -191,17 +168,9 @@ def train(opt: Args) -> None:
             writer.add_scalar('Train/Cleared lines', final_cleared_lines, epoch - 1)
 
             if epoch > 0 and epoch % opt.save_interval == 0:
-                torch.save({
-                    'epoch': epoch,
-                    'model': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                }, f"{opt.saved_path}/tetris_{epoch}")
+                torch.save(model, f"{opt.saved_path}/tetris_{epoch}")
 
-        torch.save({
-            'epoch': opt.num_epochs,
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-        }, f"{opt.saved_path}/tetris_final")
+        torch.save(model, f"{opt.saved_path}/tetris")
 
 if __name__ == "__main__":
     opt = get_args()

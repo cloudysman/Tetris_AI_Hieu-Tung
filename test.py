@@ -25,14 +25,12 @@ def test(opt):
     else:
         torch.manual_seed(123)
     
-    model_path = os.path.join(opt.saved_path, "tetris")
+    model_path = os.path.join(opt.saved_path)
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found at {model_path}")
     
-    # Load the old model
     old_model = torch.load(model_path, map_location=torch.device('cpu'))
     
-    # Create a new model with the old weights
     model = DeepQNetwork.from_old_model(old_model)
     
     model.eval()
