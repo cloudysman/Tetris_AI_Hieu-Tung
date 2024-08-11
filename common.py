@@ -6,7 +6,7 @@ GAME_BOARD_HEIGHT: int = 20
 
 STATE_INPUT: Literal['short', 'long'] = 'short'
 T_SPIN_MARK: bool = True
-OUTER_MAX: int = 200
+OUTER_MAX: int = 2000
 CPU_MAX: int = 4 # num of cpu used to collect samples = min(multiprocessing.cpu_count(), CPU_MAX)
 
 #   1.  choose what kind of Tetris you'd like to play.
@@ -23,7 +23,7 @@ FOLDER_NAME: str = '/home/tung-archlinux/Documents/Tetris_AI_Hieu-Tung/trained_m
 OUT_START: int= 0
 
 #   4.  choose the mode
-MODE: Literal['human_player', 'ai_player_training', 'ai_player_watching'] = 'ai_player_training'
+MODE: Literal['human_player', 'ai_player_training', 'ai_player_watching'] = 'ai_player_watching'
 # MODE = 'human_player'
 #MODE = 'ai_player_watching'
 

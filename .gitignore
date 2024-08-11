@@ -1,0 +1,56 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Pretrained models and checkpoints
+trained_models/
+checkpoints/
+*.h5
+*.keras
+*.pth
+*.pt
+*.ckpt
+
+# TensorFlow logs
+logs/
+events.out.tfevents.*
+
+# Data files
+*.csv
+*.pkl
+*.npz
+
+# Pygame
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.wav
+*.mp3
+
+# Other
+*.log
+.DS_Store
+Thumbs.db
+
+# Project specific
+tetris_extra/
+dataset/
+whole_model/
+record.txt

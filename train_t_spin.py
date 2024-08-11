@@ -401,6 +401,49 @@ def get_reward(add_scores, dones):
             add_score += penalty
         reward.append(add_score)
     return np.array(reward).reshape([-1, 1])
+def test(model, max_games=100, mode='piece', is_gui_on=True):
+    max_steps_per_episode = 2000
+    seed = None
+    gui = Gui() if is_gui_on else None
+    # env = GameMini(seed=seed, height=0)
+    env = Game(gui=gui, seed=seed, height=0)
+
+    episode_count = 0
+    total_score = 0
+
+    pause_time = 0.00
+
+    while True and episode_count < max_games:
+        env.reset()
+        for step in range(max_steps_per_episode):
+            states, add_scores, dones, _, _, moves = env.get_all_possible_states_conv2d()
+            rewards = get_reward(add_scores, dones)
+            q = rewards + model(states)
+            best = tf.argmax(q).numpy()[0]
+
+            if mode == 'step':
+                best_moves = moves[best]
+
+                for i in range(len(best_moves) - 1):
+                    move = best_moves[i]
+                    env.step(action=move)
+                    env.render()
+                    time.sleep(pause_time)
+                env.step(chosen=best)
+                env.render()
+                time.sleep(pause_time)
+            else:
+                env.step(chosen=best)
+                env.render()
+                time.sleep(pause_time)
+
+            if env.is_done() or step == max_steps_per_episode - 1:
+                episode_count += 1
+                total_score += env.current_state.score
+                print('episode #{}:   score:{}'.format(episode_count, env.current_state.score))
+                break
+
+    print('average score = {:7.2f}'.format(total_score / max_games))
 
 if __name__ == "__main__":
     print(f"TensorFlow version: {tf.__version__}")
